@@ -240,11 +240,8 @@ function testSSLCertificateInstallation {
     done
 
     echo -e "Testing SSL Certificate Installation..."
-    timeout $default_timeout openssl s_client -connect $server
-    # if [ $? -eq 0 ]; then
-    #     echo ""
-    # else
-    # fi
+    timeout $default_timeout echo | openssl s_client -connect $server | less
+    
 }
 
 function checkPermittedProtocols {
@@ -307,8 +304,6 @@ function output {
             echo -e "Invalid file input.";
         fi
     fi
-
-    
 }
 
 function run {
@@ -342,7 +337,7 @@ echo -e "
     echo -e "\t6. Check if a chain file applies to the signed certificate"
 
     echo -e "\n\tTest:"
-    echo -e "\t7. SSL Certificate installation"
+    echo -e "\t7. SSL Certificate handshake"
     echo -e "\t8. Permitted Protocols"
 
     echo -e "\n\tInfo:"
