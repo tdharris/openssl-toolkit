@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Variables
+default_timeout=10
+
 function askYesOrNo {
     REPLY=""
     while [ -z "$REPLY" ] ; do
@@ -18,9 +22,6 @@ NO_STRING=$"n"
 YES_NO_PROMPT=$"[y/n]: "
 YES_CAPS=$(echo ${YES_STRING}|tr [:lower:] [:upper:])
 NO_CAPS=$(echo ${NO_STRING}|tr [:lower:] [:upper:])
-
-# Variables
-default_timeout=10
 
 # Certificate functions
 function certPath {
@@ -208,11 +209,11 @@ function checkPermittedProtocols {
 
     echo -e "\nChecking Permitted Protocols (connection other than SSL3 or TLS1) for $server...\n"
     bad_protocol=false; bad_cipher=false;
-    timeout 3 openssl s_client -connect $server:443 -no_ssl3 -no_tls1
+    timeout $default_timeout openssl s_client -connect $server:443 -no_ssl3 -no_tls1
     if [ $? -eq 0 ]; then
         bad_protocol=true
     fi
-    timeout 3 openssl s_client -connect $server:443 -cipher NULL,LOW
+    timeout $default_timeout openssl s_client -connect $server:443 -cipher NULL,LOW
     if [ $? -eq 0 ]; then
         bad_cipher=true
     fi
@@ -225,7 +226,8 @@ function checkPermittedProtocols {
 }
 
 function finished {
-    echo -e "Done."; read -p "Press [Enter] to continue";
+    echo
+    read -p "Done. Press [Enter] to continue";
 }
 
 while :
