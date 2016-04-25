@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Variables
-default_timeout=10
+default_timeout=3
+isSelfSigned=false
 
 function askYesOrNo {
     REPLY=""
@@ -159,7 +160,37 @@ function createPEM {
     fi
 }
 
-function verify {
+function verifyCSRPrivateKeyPair {
+    echo -e "\nPlease provide the CSR public key and private key\n"
+    read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
+    if [ -d $path ];then 
+        cd $path;
+    echo "Listing certificate files..."
+        ls -l *.key *.crt *.csr 2>/dev/null;
+        if [ $? -ne 0 ]; then
+            echo -e "\nCould not find any certificate files (.key, .crt, *.csr). Listing all:";
+            ls
+        fi
+        echo
+        read -ep "Enter the private key (.key): " key;
+        read -ep "Enter the CSR: " csr;
+        if [ -f ${PWD}"/$key" ]  && [ -f ${PWD}"/$csr" ]; then
+            echo
+            key=`openssl rsa -noout -modulus -in $key | openssl md5`
+            csr=`openssl req -noout -modulus -in $csr | openssl md5`
+            echo
+            if [ "$key" == "$csr" ]; then
+                echo "CSR is a public key of the private key."
+            else echo "Invalid pair! CSR is not a public key of the private key."
+            fi
+            echo "key: " $key
+            echo "csr: " $csr
+        else
+            echo -e "Invalid file input.";
+        fi
+    fi
+}
+function verifyServerCertificatePrivateKeyPair {
     echo -e "\nPlease provide the private key and the public key/certificate\n"
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
     if [ -d $path ];then 
@@ -167,38 +198,60 @@ function verify {
     echo "Listing certificate files..."
         ls -l *.key *.crt 2>/dev/null;
         if [ $? -ne 0 ]; then
-            echo -e "Could not find any certificate files (.key, .crt).";
-        else
+            echo -e "\nCould not find any certificate files (.key, .crt). Listing all:";
+            ls
+        fi
+        echo
+        read -ep "Enter the private key (.key): " key;
+        # read -ep "Enter the CSR: " csr;
+        read -ep "Enter the public key (.crt): " crt;
+        if [ -f ${PWD}"/$key" ]  && [ -f ${PWD}"/$crt" ]; then
             echo
-            read -ep "Enter the private key (.key): " key;
-            # read -ep "Enter the CSR: " csr;
-            read -ep "Enter the public key (.crt): " crt;
-            if [ -f ${PWD}"/$key" ]  && [ -f ${PWD}"/$crt" ]; then
-                echo
-                crt=`openssl x509 -noout -modulus -in $crt | openssl md5`
-                key=`openssl rsa -noout -modulus -in $key | openssl md5`
-                # csr=`openssl req -noout -modulus -in $csr | openssl md5`
-                echo
-                if [ "$crt" == "$key" ]; then
-                    echo "Certificates have been validated."
-                else echo "Certificate mismatch!"
-                fi
-                echo "key: " $key
-                # echo "csr: " $csr
-                echo "crt: " $crt
-            else
-                echo -e "Invalid file input.";
+            crt=`openssl x509 -noout -modulus -in $crt | openssl md5`
+            key=`openssl rsa -noout -modulus -in $key | openssl md5`
+            # csr=`openssl req -noout -modulus -in $csr | openssl md5`
+            echo
+            if [ "$crt" == "$key" ]; then
+                echo "Certificates have been validated."
+            else echo "Certificate mismatch!"
             fi
+            echo "key: " $key
+            # echo "csr: " $csr
+            echo "crt: " $crt
+        else
+            echo -e "Invalid file input.";
         fi
     fi
     echo -e "\nDone."
     read -p "Press [Enter] to continue."
 }
+function verifyChainFileAppliesToSignedCertificate {
+    # TODO:
+    echo "in progress..."
+}
+function testSSLCertificateInstallation {
+    # Prompt for server address
+    while [ "$valid" != "true" ]; do
+        read -ep "Server DNS/IP Address and port (server:port): " server;
+        if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
+            valid=true
+            else echo -e "Invalid syntax for Server DNS/IP Address. Please try again.\n"
+        fi
+    done
+
+    echo -e "Testing SSL Certificate Installation..."
+    timeout $default_timeout openssl s_client -connect $server
+    # if [ $? -eq 0 ]; then
+    #     echo ""
+    # else
+    # fi
+}
 
 function checkPermittedProtocols {
     # TODO: Prompt for permitted protocols (currently hard-coded)
-    # checks if a connection other than SSL3 or TLS1 can be established
-    valid=false;
+    # default: checks if a connection other than SSL3 or TLS1 can be established
+
+    # Prompt for server address
     while [ "$valid" != "true" ]; do
         read -ep "Server DNS/IP Address and port (server:port): " server;
         if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
@@ -218,6 +271,7 @@ function checkPermittedProtocols {
         bad_cipher=true
     fi
 
+    # TODO: Handle other errors: dns lookup for hostname fails, fail to connect
     if($bad_protocol || $bad_cipher); then
         echo -e "\nAn unpermitted protocol can be established!";
         else echo -e "\nOnly permitted protocols can be established. No problems detected."
@@ -225,6 +279,43 @@ function checkPermittedProtocols {
 
 }
 
+function output {
+    echo -e "\nPlease provide the certificate file\n"
+    type="$1"
+    read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
+    if [ -d $path ];then 
+        cd $path;
+    echo "Listing certificate files..."
+        ls -l *.key *.crt *.csr 2>/dev/null;
+        if [ $? -ne 0 ]; then
+            echo -e "\nCould not find any certificate files (.key, .crt, .csr). Listing all:";
+            ls
+        fi
+        echo
+        read -ep "Enter the certificate: " crtFile;
+        if [[ -f ${PWD}"/$crtFile" ]]; then
+            echo
+
+            if [ "$type" == "csr" ]; then
+                openssl req -text -in ${PWD}"/$crtFile"
+            elif [ "$type" == "crt" ]; then
+                openssl x509 -text -in ${PWD}"/$crtFile"
+            else echo "Invalid output type: $type"
+            fi
+
+        else
+            echo -e "Invalid file input.";
+        fi
+    fi
+
+    
+}
+
+function run {
+    clear;
+    $1 $2
+    finished;
+}
 function finished {
     echo
     read -p "Done. Press [Enter] to continue";
@@ -233,7 +324,6 @@ function finished {
 while :
 do
  clear
-cd $cPWD; isSelfSigned=false
 echo -e "                                                        
       ____                __________     ______          ____    _ __ 
      / __ \___  ___ ___  / __/ __/ / ___/_  __/__  ___  / / /__ (_) /_
@@ -247,36 +337,37 @@ echo -e "
     echo -e "\t3. PEM with key and entire trust chain"
 
     echo -e "\n\tVerify:"
-    echo -e "\t4. Server certificate and private key pair"
+    echo -e "\t4. Check if a CSR is a public key from the private key"
+    echo -e "\t5. Check if a signed certificate is the public key from the private key"
+    echo -e "\t6. Check if a chain file applies to the signed certificate"
 
     echo -e "\n\tTest:"
-    echo -e "\t5. SSL Certificate installation"
-    echo -e "\t6. Permitted Protocols"
+    echo -e "\t7. SSL Certificate installation"
+    echo -e "\t8. Permitted Protocols"
+
+    echo -e "\n\tInfo:"
+    echo -e "\t9. Output the details from a certifticate sign request"
+    echo -e "\t10. Output the details from a signed certificate"
 
     echo -e "\n\t0. Back"
     echo -n -e "\n\tSelection: "
+
     read opt
     a=true;
- case $opt in
- 1) # Self-Signed Certificate
-    clear; createSelfSignedCertificate; finished;;
+    case $opt in
+        1) run "createSelfSignedCertificate";;
+        2) run "createCSRKey";;
+        3) run "createPEM";;
+        4) run "verifyServerCertificatePrivateKeyPair";;
+        5) run "verifyCSRPrivateKeyPair";;
+        6) run "verifyChainFileAppliesToSignedCertificate";;
+        7) run "testSSLCertificateInstallation";;
+        8) run "checkPermittedProtocols";;
+        
+        9) run "output" "csr";;
+        10) run "output" "crt";;
+        /q | q | 0)break;;
+        *) ;;
 
- 2) # CSR/KEY
-    clear; createCSRKey; finished;;
-
-  3) # Create PEM
-    clear; createPEM; finished;;
-
-  4) # Verify Certificates: Private Key, CSR, Public Certificate
-    clear; verify; finished;;
-
-  5) # Verify SSL Certificate installation
-    clear; finished;;
-
-  6) # Verify Certificates: Check Permitted Protocols
-    clear; checkPermittedProtocols; finished;;
-
-/q | q | 0)break;;
-  *) ;;
-esac
-done
+    esac
+    done
