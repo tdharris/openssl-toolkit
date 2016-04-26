@@ -5,9 +5,15 @@ default_timeout=3
 isSelfSigned=false
 certificateFiles="*.key *.csr *.crt *.cert *.der"
 
-bold() { ansi 1 "$@"; }
-italic() { ansi 3 "$@"; }
-underline() { ansi 4 "$@"; }
+# Colors
+# example: echo -e "${green} TEXT ${def}"
+red='\e[91m' # Red
+green='\e[92m' #Bold Green
+yellow='\e[93m' #Yellow
+underlined='\e[4m'
+bold='\e[1m'  #Bold
+ubold=`tput bold; tput smul` #Underline Bold
+def='\e[0m' # No Color - default
 
 function askYesOrNo {
     REPLY=""
@@ -58,14 +64,21 @@ function newCertPass {
         done
 }
 
-function createCSRKey { 
+function createSelfSignedCertificate {
+    echo -e "\nNote: The following will create a CSR, private key and generate a self-signed certificate.\n"
+    createCSRKey
+    signCert
+    createPEM
+}
+
+function createCSRKey {
     #Start of Generate CSR and Key script.
     certPath
         cd $certPath;
         echo -e "\nGenerating a Key and CSR";
         newCertPass
-        
-    echo ""                                                                                                                                                                                            1,1           Top
+
+    echo ""
     openssl genrsa -passout pass:${pass} -des3 -out server.key 2048;
     openssl req -sha256 -new -key server.key -out server.csr -passin pass:${pass};
     key=${PWD##&/}"/server.key";
@@ -85,29 +98,21 @@ function signCert {
         if [[ -z "$certDays" ]]; then
             certDays=730;
         fi
-        openssl x509 -req -sha256 -days $certDays -in $csr -signkey $key -out $crt -passin pass:${pass} 2>/dev/null;
+        openssl x509 -req -days $certDays -in $csr -signkey $key -out $crt -passin pass:${pass} 2>/dev/null;
         echo -e "Server certificate created at $crt";
-        else 
+        else
             echo "Could not find server.key or server.csr in "${PWD##&/};
     fi
 }
 
-function createSelfSignedCertificate {
-    echo -e "\nNote: The following will create a CSR, private key and generate a self-signed certificate.\n"
-    createCSRKey
-    signCert
-    createPEM
-}
-
-# TODO: fix password prompts, error checking...
 function createPEM {
     echo -e "\nCreating PEM..."
-    
+
     # Ask for files/path if not self-signed
     if (! $isSelfSigned); then
         echo -e "Please provide the private key, the public key or certificate, and any intermediate CA or bundles.\n"
         read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-        if [ -d $path ];then 
+        if [ -d $path ];then
             cd $path;
             ls --format=single-column | column
             if [ $? -eq 0 ]; then
@@ -121,27 +126,26 @@ function createPEM {
                     else echo -e "Invalid filename.\n";
                     fi
                 done
-                grep -iq "ENCRYPTED" $key
-                if [ $? -eq 0 ]; then
-                    newCertPass
-                fi
+                newCertPass
             else
                 echo -e "Cannot find any or all certificates files.";
             fi
         else echo "Invalid file path.";
-        fi 
+        fi
     fi
 
     # Create PEM
     if [ -f "$key" ] && [ -f "$crt" ];then
+        # dos2unix the files to remove problem characters
+        dos2unix $key $crt &>/dev/null
+
         # Removing password from Private Key, if it contains one
-        echo "running openssl..."
         openssl rsa -in $key -out nopassword.key -passin pass:${pass} 2>/dev/null;
         if [ $? -eq 0 ]; then
-            cat  nopassword.key > server.pem;
+            echo "$(cat nopassword.key)" > server.pem;
             rm -f nopassword.key;
-            cat $crt >> server.pem;
-            
+            echo "$(cat $crt)" >> server.pem;
+
             if (! $isSelfSigned); then
                 while [ true ];
                 do
@@ -151,7 +155,8 @@ function createPEM {
                     ls --format=single-column | column
                     read -ep "Intermediate filename: " crtName;
                     if [ ! -z "$crtName" ];then
-                        cat $crtName >> server.pem;
+                        dos2unix $crtName &>/dev/null
+                        echo "$(cat $crtName)" >> server.pem;
                     fi
                 else
                     break;
@@ -185,8 +190,8 @@ function verifyCSRPrivateKeyPair {
             csr=`openssl req -noout -modulus -in $csr | openssl md5`
             echo
             if [ "$key" == "$csr" ]; then
-                echo "CSR is a public key of the private key."
-            else echo "Invalid pair! CSR is not a public key of the private key."
+                echo -e "${green}Success${def}. CSR is a public key of the private key."
+            else echo "${red}Failure${def}. Invalid pair! CSR is not a public key of the private key."
             fi
             echo "key: " $key
             echo "csr: " $csr
@@ -214,14 +219,12 @@ function verifyServerCertificatePrivateKeyPair {
             echo
             crt=`openssl x509 -noout -modulus -in $crt | openssl md5`
             key=`openssl rsa -noout -modulus -in $key | openssl md5`
-            # csr=`openssl req -noout -modulus -in $csr | openssl md5`
             echo
             if [ "$crt" == "$key" ]; then
-                echo "Certificates have been validated."
-            else echo "Certificate mismatch!"
+                echo "${green}Success${def}. Certificates have been validated."
+            else echo "${red}Failure${def}. Certificate mismatch!"
             fi
             echo "key: " $key
-            # echo "csr: " $csr
             echo "crt: " $crt
         else
             echo -e "Invalid file input.";
@@ -248,8 +251,8 @@ function verifyChainFileAppliesToSignedCertificate {
             echo
             openssl verify -verbose -purpose sslserver -CAfile "$cafile" "$crt"
             if [ $? -eq 0 ]; then
-                echo -e "\nSuccess. Certificates match to form a complete SSL chain."
-            else echo -e "\nFailure. Certificates do not form a complete SSL chain."
+                echo -e "\n${green}Success${def}. Certificates match to form a complete SSL chain."
+            else echo -e "\n${red}Failure${def}. Certificates do not form a complete SSL chain."
             fi
             echo "cafile: " "${PWD}/$cafile"
             echo "crt: " "${PWD}/$crt"
@@ -260,7 +263,9 @@ function verifyChainFileAppliesToSignedCertificate {
 }
 function testSSLCertificateInstallation {
     # Prompt for server address
+    local valid
     while [ "$valid" != "true" ]; do
+        echo -e "Test SSL Certificate handshake. Note: Results will be piped to less.\n"
         read -ep "Server DNS/IP Address and port (server:port): " server;
         if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
             valid=true
@@ -270,6 +275,7 @@ function testSSLCertificateInstallation {
 
     echo -e "Testing SSL Certificate Installation..."
     timeout $default_timeout echo | openssl s_client -connect $server | less
+    echo -e "Connection output has been displayed."
     
 }
 
@@ -278,7 +284,9 @@ function checkPermittedProtocols {
     # default: checks if a connection other than SSL3 or TLS1 can be established
 
     # Prompt for server address
+    local valid
     while [ "$valid" != "true" ]; do
+        echo -e "Test Permitted Protocols.\n"
         read -ep "Server DNS/IP Address and port (server:port): " server;
         if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
             valid=true
@@ -306,8 +314,8 @@ function checkPermittedProtocols {
 }
 
 function output {
-    echo -e "\nPlease provide the certificate file\n"
     type="$1"
+    echo -e "\nOutput certificate information ($type). Note: Results will be piped to less. \n\nPlease provide the certificate file."
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
     if [ -d $path ];then 
         cd $path;
@@ -320,12 +328,12 @@ function output {
         echo
         read -ep "Enter the certificate: " crtFile;
         if [[ -f ${PWD}"/$crtFile" ]]; then
-            echo
+            echo "Certificate information has been displayed."
 
             if [ "$type" == "csr" ]; then
-                openssl req -text -in ${PWD}"/$crtFile"
+                openssl req -text -in ${PWD}"/$crtFile" | less
             elif [ "$type" == "crt" ]; then
-                openssl x509 -text -in ${PWD}"/$crtFile"
+                openssl x509 -text -in ${PWD}"/$crtFile" | less
             else echo "Invalid output type: $type"
             fi
 
@@ -368,14 +376,14 @@ do
     echo -e "\n\t0. Back"
     echo -n -e "\n\tSelection: "
 
-    read opt
+    read -n1 opt
     a=true;
     case $opt in
         1) # submenu: Create
             while :
             do
                 showBanner
-                echo -e "\n\tCreate certificates:"
+                echo -e "\n\t${underlined}Create certificates:${def}\n"
                 echo -e "\t1. Self-Signed SSL Certificate (key, csr, crt)"
                 echo -e "\t2. Private Key & Certificate Signing Request (key, csr)"
                 echo -e "\t3. PEM with key and entire trust chain"
@@ -400,7 +408,7 @@ do
             while :
             do
                 showBanner
-                echo -e "\n\tVerify certificates:"
+                echo -e "\n\t${underlined}Verify certificates:${def}\n"
                 echo -e "\t1. CSR is a public key from the private key"
                 echo -e "\t2. Signed certificate is the public key from the private key"
                 echo -e "\t3. Chain file applies to the signed certificate (complete ssl chain)"
@@ -425,7 +433,7 @@ do
             while :
             do
                 showBanner
-                echo -e "\n\tTest connectivity:"
+                echo -e "\n\t${underlined}Test connectivity:${def}\n"
                 echo -e "\t1. SSL Certificate handshake"
                 echo -e "\t2. Permitted Protocols"
 
@@ -448,7 +456,7 @@ do
             while :
             do
                 showBanner
-                echo -e "\n\tOutput certificate information:"
+                echo -e "\n\t${underlined}Output certificate information:${def}\n"
                 echo -e "\t1. Output the details from a certifticate sign request"
                 echo -e "\t2. Output the details from a signed certificate"
 
@@ -467,7 +475,7 @@ do
             done
             ;;
         
-        /q | q | 0)break;;
+        /q | q | 0) echo; break;;
         *) ;;
 
     esac
