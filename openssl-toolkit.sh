@@ -3,6 +3,11 @@
 # Variables
 default_timeout=3
 isSelfSigned=false
+certificateFiles="*.key *.csr *.crt *.cert *.der"
+
+bold() { ansi 1 "$@"; }
+italic() { ansi 3 "$@"; }
+underline() { ansi 4 "$@"; }
 
 function askYesOrNo {
     REPLY=""
@@ -166,7 +171,7 @@ function verifyCSRPrivateKeyPair {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l *.key *.crt *.csr 2>/dev/null;
+        ls -l "$certificateFiles" 2>/dev/null;
         if [ $? -ne 0 ]; then
             echo -e "\nCould not find any certificate files (.key, .crt, *.csr). Listing all:";
             ls
@@ -196,7 +201,7 @@ function verifyServerCertificatePrivateKeyPair {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l *.key *.crt 2>/dev/null;
+        ls -l "$certificateFiles" 2>/dev/null;
         if [ $? -ne 0 ]; then
             echo -e "\nCould not find any certificate files (.key, .crt). Listing all:";
             ls
@@ -226,8 +231,32 @@ function verifyServerCertificatePrivateKeyPair {
     read -p "Press [Enter] to continue."
 }
 function verifyChainFileAppliesToSignedCertificate {
-    # TODO:
-    echo "in progress..."
+    echo -e "\nPlease provide the root/intermediate and CA-signed certificates\n"
+    read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
+    if [ -d $path ];then 
+        cd $path;
+    echo "Listing certificate files..."
+        ls -l "$certificateFiles" 2>/dev/null;
+        if [ $? -ne 0 ]; then
+            echo -e "\nCould not find any certificate files ($certificateFiles). Listing all:";
+            ls
+        fi
+        echo
+        read -ep "Enter the file containing both root and intermediates: " cafile;
+        read -ep "Enter the file containing the signed certificate: " crt;
+        if [ -f ${PWD}"/$cafile" ]  && [ -f ${PWD}"/$crt" ]; then
+            echo
+            openssl verify -verbose -purpose sslserver -CAfile "$cafile" "$crt"
+            if [ $? -eq 0 ]; then
+                echo -e "\nSuccess. Certificates match to form a complete SSL chain."
+            else echo -e "\nFailure. Certificates do not form a complete SSL chain."
+            fi
+            echo "cafile: " "${PWD}/$cafile"
+            echo "crt: " "${PWD}/$crt"
+        else
+            echo -e "Invalid file input.";
+        fi
+    fi
 }
 function testSSLCertificateInstallation {
     # Prompt for server address
@@ -283,9 +312,9 @@ function output {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l *.key *.crt *.csr 2>/dev/null;
+        ls -l "$certificateFiles" 2>/dev/null;
         if [ $? -ne 0 ]; then
-            echo -e "\nCould not find any certificate files (.key, .crt, .csr). Listing all:";
+            echo -e "\nCould not find any certificate files ($certificateFiles). Listing all:";
             ls
         fi
         echo
@@ -306,19 +335,8 @@ function output {
     fi
 }
 
-function run {
-    clear;
-    $1 $2
-    finished;
-}
-function finished {
-    echo
-    read -p "Done. Press [Enter] to continue";
-}
-
-while :
-do
- clear
+function showBanner {
+clear
 echo -e "                                                        
       ____                __________     ______          ____    _ __ 
      / __ \___  ___ ___  / __/ __/ / ___/_  __/__  ___  / / /__ (_) /_
@@ -326,23 +344,26 @@ echo -e "
     \____/ .__/\__/_//_/___/___/____/   /_/  \___/\___/_/_/\_\/_/\__/ 
         /_/                                                           
 "
-    echo -e "\n\tCreate:"
-    echo -e "\t1. Self-Signed SSL Certificate (key, csr, crt)"
-    echo -e "\t2. Private Key & Certificate Signing Request (key, csr)"
-    echo -e "\t3. PEM with key and entire trust chain"
+}
 
-    echo -e "\n\tVerify:"
-    echo -e "\t4. Check if a CSR is a public key from the private key"
-    echo -e "\t5. Check if a signed certificate is the public key from the private key"
-    echo -e "\t6. Check if a chain file applies to the signed certificate"
+function run {
+    clear;
+    $1 $2
+    finished;
+}
 
-    echo -e "\n\tTest:"
-    echo -e "\t7. SSL Certificate handshake"
-    echo -e "\t8. Permitted Protocols"
+function finished {
+    echo
+    read -p "Done. Press [Enter] to continue";
+}
 
-    echo -e "\n\tInfo:"
-    echo -e "\t9. Output the details from a certifticate sign request"
-    echo -e "\t10. Output the details from a signed certificate"
+while :
+do
+    showBanner
+    echo -e "\n\t1. Create certificates..."
+    echo -e "\t2. Verify certificates..."
+    echo -e "\t3. Test connectivity..."
+    echo -e "\t4. Output certificate information..."
 
     echo -e "\n\t0. Back"
     echo -n -e "\n\tSelection: "
@@ -350,17 +371,102 @@ echo -e "
     read opt
     a=true;
     case $opt in
-        1) run "createSelfSignedCertificate";;
-        2) run "createCSRKey";;
-        3) run "createPEM";;
-        4) run "verifyServerCertificatePrivateKeyPair";;
-        5) run "verifyCSRPrivateKeyPair";;
-        6) run "verifyChainFileAppliesToSignedCertificate";;
-        7) run "testSSLCertificateInstallation";;
-        8) run "checkPermittedProtocols";;
+        1) # submenu: Create
+            while :
+            do
+                showBanner
+                echo -e "\n\tCreate certificates:"
+                echo -e "\t1. Self-Signed SSL Certificate (key, csr, crt)"
+                echo -e "\t2. Private Key & Certificate Signing Request (key, csr)"
+                echo -e "\t3. PEM with key and entire trust chain"
+
+                echo -e "\n\t0. Back"
+                echo -n -e "\n\tSelection: "
+                read -n1 opt;
+                case $opt in
+
+                    1) run "createSelfSignedCertificate";;
+                    2) run "createCSRKey";;
+                    3) run "createPEM";;
+
+                    /q | q | 0)break;;
+                    *) ;;
+
+            esac
+            done
+            ;;
         
-        9) run "output" "csr";;
-        10) run "output" "crt";;
+        2) # submenu: Verify
+            while :
+            do
+                showBanner
+                echo -e "\n\tVerify certificates:"
+                echo -e "\t1. CSR is a public key from the private key"
+                echo -e "\t2. Signed certificate is the public key from the private key"
+                echo -e "\t3. Chain file applies to the signed certificate (complete ssl chain)"
+
+                echo -e "\n\t0. Back"
+                echo -n -e "\n\tSelection: "
+                read -n1 opt;
+                case $opt in
+
+                    1) run "verifyServerCertificatePrivateKeyPair";;
+                    2) run "verifyCSRPrivateKeyPair";;
+                    3) run "verifyChainFileAppliesToSignedCertificate";;
+
+                    /q | q | 0)break;;
+                    *) ;;
+
+            esac
+            done
+            ;;
+
+        3) # submenu: Test
+            while :
+            do
+                showBanner
+                echo -e "\n\tTest connectivity:"
+                echo -e "\t1. SSL Certificate handshake"
+                echo -e "\t2. Permitted Protocols"
+
+                echo -e "\n\t0. Back"
+                echo -n -e "\n\tSelection: "
+                read -n1 opt;
+                case $opt in
+
+                    1) run "testSSLCertificateInstallation";;
+                    2) run "checkPermittedProtocols";;
+
+                    /q | q | 0)break;;
+                    *) ;;
+
+            esac
+            done
+            ;;
+        
+        4) # submenu: Info
+            while :
+            do
+                showBanner
+                echo -e "\n\tOutput certificate information:"
+                echo -e "\t1. Output the details from a certifticate sign request"
+                echo -e "\t2. Output the details from a signed certificate"
+
+                echo -e "\n\t0. Back"
+                echo -n -e "\n\tSelection: "
+                read -n1 opt;
+                case $opt in
+
+                    1) run "output" "csr";;
+                    2) run "output" "crt";;
+
+                    /q | q | 0)break;;
+                    *) ;;
+
+            esac
+            done
+            ;;
+        
         /q | q | 0)break;;
         *) ;;
 
