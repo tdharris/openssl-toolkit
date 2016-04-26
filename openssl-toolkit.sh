@@ -2,6 +2,7 @@
 
 # Variables
 default_timeout=3
+default_tolerance=7776000 # 90 days
 isSelfSigned=false
 certificateFiles="*.key *.csr *.crt *.cert *.der"
 
@@ -98,7 +99,7 @@ function signCert {
         if [[ -z "$certDays" ]]; then
             certDays=730;
         fi
-        openssl x509 -req -days $certDays -in $csr -signkey $key -out $crt -passin pass:${pass} 2>/dev/null;
+        openssl x509 -req -sha256 -days $certDays -in $csr -signkey $key -out $crt -passin pass:${pass} 2>/dev/null;
         echo -e "Server certificate created at $crt";
         else
             echo "Could not find server.key or server.csr in "${PWD##&/};
@@ -176,7 +177,7 @@ function verifyCSRPrivateKeyPair {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l "$certificateFiles" 2>/dev/null;
+        ls -l
         if [ $? -ne 0 ]; then
             echo -e "\nCould not find any certificate files (.key, .crt, *.csr). Listing all:";
             ls
@@ -206,7 +207,7 @@ function verifyServerCertificatePrivateKeyPair {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l "$certificateFiles" 2>/dev/null;
+        ls -l
         if [ $? -ne 0 ]; then
             echo -e "\nCould not find any certificate files (.key, .crt). Listing all:";
             ls
@@ -239,11 +240,7 @@ function verifyChainFileAppliesToSignedCertificate {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l "$certificateFiles" 2>/dev/null;
-        if [ $? -ne 0 ]; then
-            echo -e "\nCould not find any certificate files ($certificateFiles). Listing all:";
-            ls
-        fi
+        ls -l
         echo
         read -ep "Enter the file containing both root and intermediates: " cafile;
         read -ep "Enter the file containing the signed certificate: " crt;
@@ -313,6 +310,30 @@ function checkPermittedProtocols {
 
 }
 
+function checkValidity {
+    local path;
+    local crtFile;
+    echo -e "\nCheck date validity of certificates. \n\nPlease provide the certificate file."
+    read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
+    if [ -d $path ];then 
+        cd $path;
+    echo "Listing certificate files..."
+        ls -l
+        echo
+        read -ep "Enter the certificate: " crtFile;
+        if [[ -f ${PWD}"/$crtFile" ]]; then
+            
+            checkStatus=$(openssl x509 -checkend $default_tolerance -in $crtFile)
+            checkStatus+=" within $(echo "$default_tolerance / 86400" | bc) days"
+            echo -e "\n$checkStatus"
+            openssl x509 -noout -enddate -in $crtFile  
+
+        else
+            echo -e "Invalid file input.";
+        fi
+    fi
+}
+
 function output {
     type="$1"
     echo -e "\nOutput certificate information ($type). Note: Results will be piped to less. \n\nPlease provide the certificate file."
@@ -320,11 +341,7 @@ function output {
     if [ -d $path ];then 
         cd $path;
     echo "Listing certificate files..."
-        ls -l "$certificateFiles" 2>/dev/null;
-        if [ $? -ne 0 ]; then
-            echo -e "\nCould not find any certificate files ($certificateFiles). Listing all:";
-            ls
-        fi
+        ls -l
         echo
         read -ep "Enter the certificate: " crtFile;
         if [[ -f ${PWD}"/$crtFile" ]]; then
@@ -412,6 +429,7 @@ do
                 echo -e "\t1. CSR is a public key from the private key"
                 echo -e "\t2. Signed certificate is the public key from the private key"
                 echo -e "\t3. Chain file applies to the signed certificate (complete ssl chain)"
+                echo -e "\t4. Check date validity of certificates"
 
                 echo -e "\n\t0. Back"
                 echo -n -e "\n\tSelection: "
@@ -421,6 +439,7 @@ do
                     1) run "verifyServerCertificatePrivateKeyPair";;
                     2) run "verifyCSRPrivateKeyPair";;
                     3) run "verifyChainFileAppliesToSignedCertificate";;
+                    4) run "checkValidity";;
 
                     /q | q | 0)break;;
                     *) ;;
