@@ -473,7 +473,7 @@ do
     echo -e "\t1. Create certificates..."
     echo -e "\t2. Convert certificates..."
     echo -e "\t3. Verify certificates..."
-    echo -e "\t4. Test connectivity..."
+    echo -e "\t4. Test ssl server..."
     echo -e "\t5. Output certificate information..."
 
     echo -e "\n\tq. Quit"
@@ -572,7 +572,7 @@ do
             while :
             do
                 showBanner
-                echo -e "\n\t${underlined}Test connectivity:${def}\n"
+                echo -e "\n\t${underlined}Test ssl server:${def}\n"
                 echo -e "\t1. SSL Certificate handshake"
                 echo -e "\t2. SSL Server date validity"
                 echo -e "\t3. Permitted Protocols"
