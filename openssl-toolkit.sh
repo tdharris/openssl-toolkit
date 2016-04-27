@@ -19,7 +19,7 @@ def='\e[0m' # No Color - default
 function askYesOrNo {
     REPLY=""
     while [ -z "$REPLY" ] ; do
-        read -ep "$1 $YES_NO_PROMPT" REPLY
+        read -ep "$1 $YES_NO_PROMPT" -n1 REPLY
         REPLY=$(echo ${REPLY}|tr [:lower:] [:upper:])
         case $REPLY in
             $YES_CAPS ) return 0 ;;
@@ -336,13 +336,31 @@ function checkValidityOfCertificateFile {
 
 function getFilename {
     local file="$1"
-    echo ${file%%.*}
+    echo "${file%%.*}"
+}
+function getFileExtension {
+    local file="$1"
+    echo "${file##*.}"
 }
 # Convert
+function checkFileExtension { 
+    local file="$1"
+    local exp="$2"
+    local ext=$(getFileExtension "$file")
+    if [ "$ext" == "$exp" ]; then
+        echo 0
+    else 
+        if askYesOrNo $"File extension is .$ext (expected .$exp), are you sure?"; then
+            echo 0
+        else echo 1
+        fi
+    fi
+}
 function handleConversionOutput {
     if [[ $1 -eq 0 ]]; then
         echo -e "\n${green}Success${def}."
         echo -e "Converted '$2' to '$3'"
+        echo -e "${PWD}/$target"
         else echo -e "\n${red}Failure${def}."
     fi
 }
@@ -368,36 +386,55 @@ function convertCertificate {
     case "$1" in
         "convertPEMtoDER") 
             target="$target.der" 
-            openssl x509 -outform der -in "$source" -out "$target" 
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "pem")
+            if [[ $rc -eq 0 ]]; then 
+                openssl x509 -outform der -in "$source" -out "$target" 
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         "convertPEMtoP7B") 
             target="$target.p7b"
-            openssl crl2pkcs7 -nocrl -certfile "$source" -out "$target" 
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "pem")
+            if [[ $rc -eq 0 ]]; then
+                openssl crl2pkcs7 -nocrl -certfile "$source" -out "$target" 
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         "convertPEMtoPFX") 
             target="$target.pfx"
-            openssl pkcs12 -export -out "$target" -inkey "$source" -in "$source" -certfile "$source"
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "pem")
+            if [[ $rc -eq 0 ]]; then
+                openssl pkcs12 -export -out "$target" -inkey "$source" -in "$source" -certfile "$source"
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         "convertDERtoPEM") 
             target="$target.pem"
-            openssl x509 -inform der -in "$source" -out "$target"
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "der")
+            if [[ $rc -eq 0 ]]; then
+                openssl x509 -inform der -in "$source" -out "$target"
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         "convertP7BtoPEM") 
             target="$target.pem"
-            openssl pkcs7 -print_certs -in "$source" -out "$target"
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "p7b")
+            if [[ $rc -eq 0 ]]; then
+                openssl pkcs7 -print_certs -in "$source" -out "$target"
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         "convertP7BtoPFX") 
             target="$target.pfx"
-            openssl pkcs7 -print_certs -in "$source" -out "$target"
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "p7b")
+            if [[ $rc -eq 0 ]]; then
+                openssl pkcs7 -print_certs -in "$source" -out "$target"
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         "convertPFXtoPEM")
             target="$target.pem"
-            openssl pkcs12 -in "$source" -out "$target" -nodes
-            handleConversionOutput "$?" "$source" "$target";;
+            rc=$(checkFileExtension "$source" "pfx")
+            if [[ $rc -eq 0 ]]; then
+                openssl pkcs12 -in "$source" -out "$target" -nodes
+                handleConversionOutput "$?" "$source" "$target"
+            fi;;
         *) echo -e "\nUnsupported conversion requested: $1"
     esac
-
-    echo -e "${PWD}/$target"
 }
 
 function checkValidityOfSSLServer {
