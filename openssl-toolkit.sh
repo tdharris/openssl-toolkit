@@ -310,7 +310,7 @@ function checkPermittedProtocols {
 
 }
 
-function checkValidity {
+function checkValidityOfCertificateFile {
     local path;
     local crtFile;
     echo -e "\nCheck date validity of certificates. \n\nPlease provide the certificate file."
@@ -332,6 +332,90 @@ function checkValidity {
             echo -e "Invalid file input.";
         fi
     fi
+}
+
+function getFilename {
+    local file="$1"
+    echo ${file%%.*}
+}
+# Convert
+function handleConversionOutput {
+    if [[ $1 -eq 0 ]]; then
+        echo -e "\n${green}Success${def}."
+        echo -e "Converted '$2' to '$3'"
+        else echo -e "\n${red}Failure${def}."
+    fi
+}
+function convertCertificate {
+    local source
+    echo -e "\nConvert Certificate: $1. \n\nPlease provide the certificate file."
+    read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
+    if [ -d $path ];then 
+        cd $path;
+    echo "Listing certificate files..."
+        ls -l
+        echo
+        read -ep "Enter the certificate: " source;
+        if [[ -f ${PWD}"/$source" ]]; then
+             sourcename=$(getFilename "$source") # filename without extension
+        else
+            echo -e "Invalid file input.";
+        fi
+    fi
+
+    local sourcename=$(getFilename "$source")
+    local target="$sourcename"
+    case "$1" in
+        "convertPEMtoDER") 
+            target="$target.der" 
+            openssl x509 -outform der -in "$source" -out "$target" 
+            handleConversionOutput "$?" "$source" "$target";;
+        "convertPEMtoP7B") 
+            target="$target.p7b"
+            openssl crl2pkcs7 -nocrl -certfile "$source" -out "$target" 
+            handleConversionOutput "$?" "$source" "$target";;
+        "convertPEMtoPFX") 
+            target="$target.pfx"
+            openssl pkcs12 -export -out "$target" -inkey "$source" -in "$source" -certfile "$source"
+            handleConversionOutput "$?" "$source" "$target";;
+        "convertDERtoPEM") 
+            target="$target.pem"
+            openssl x509 -inform der -in "$source" -out "$target"
+            handleConversionOutput "$?" "$source" "$target";;
+        "convertP7BtoPEM") 
+            target="$target.pem"
+            openssl pkcs7 -print_certs -in "$source" -out "$target"
+            handleConversionOutput "$?" "$source" "$target";;
+        "convertP7BtoPFX") 
+            target="$target.pfx"
+            openssl pkcs7 -print_certs -in "$source" -out "$target"
+            handleConversionOutput "$?" "$source" "$target";;
+        "convertPFXtoPEM")
+            target="$target.pem"
+            openssl pkcs12 -in "$source" -out "$target" -nodes
+            handleConversionOutput "$?" "$source" "$target";;
+        *) echo -e "\nUnsupported conversion requested: $1"
+    esac
+
+    echo -e "${PWD}/$target"
+}
+
+function checkValidityOfSSLServer {
+
+    local valid;
+    local server;
+    while [ "$valid" != "true" ]; do
+        echo -e "Check date validity of ssl server.\n\nPlease provide the server information."
+        read -ep "Server DNS/IP Address and port (server:port): " server;
+        if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
+            valid=true
+            else echo -e "Invalid syntax for Server DNS/IP Address. Please try again.\n"
+        fi
+    done
+
+    echo -e "\nChecking date validity of $server\n"
+    timeout $default_timeout echo | openssl s_client -connect "$server:443" | openssl x509 -text | grep -i -A3 validity
+
 }
 
 function output {
@@ -385,12 +469,14 @@ function finished {
 while :
 do
     showBanner
-    echo -e "\n\t1. Create certificates..."
-    echo -e "\t2. Verify certificates..."
-    echo -e "\t3. Test connectivity..."
-    echo -e "\t4. Output certificate information..."
+    echo -e "\n\t${underlined}Submenu options:${def}\n"
+    echo -e "\t1. Create certificates..."
+    echo -e "\t2. Convert certificates..."
+    echo -e "\t3. Verify certificates..."
+    echo -e "\t4. Test connectivity..."
+    echo -e "\t5. Output certificate information..."
 
-    echo -e "\n\t0. Back"
+    echo -e "\n\tq. Quit"
     echo -n -e "\n\tSelection: "
 
     read -n1 opt
@@ -420,8 +506,42 @@ do
             esac
             done
             ;;
-        
-        2) # submenu: Verify
+
+        2) # submenu: Convert
+            while :
+            do
+                showBanner
+                echo -e "\n\t${underlined}Convert certificates:${def}\n"
+                
+                echo -e "\t1. PEM -> DER"
+                echo -e "\t2. PEM -> P7B"
+                echo -e "\t3. PEM -> PFX"
+                echo -e "\t4. DER -> PEM"
+                echo -e "\t5. P7B -> PEM"
+                echo -e "\t6. P7B -> PFX"
+                echo -e "\t7. PFX -> PEM"
+
+                echo -e "\n\t0. Back"
+                echo -n -e "\n\tSelection: "
+                read -n1 opt;
+                case $opt in
+
+                    1) run "convertCertificate" "convertPEMtoDER";;
+                    2) run "convertCertificate" "convertPEMtoP7B";;
+                    3) run "convertCertificate" "convertPEMtoPFX";;
+                    4) run "convertCertificate" "convertDERtoPEM";;
+                    5) run "convertCertificate" "convertP7BtoPEM";;
+                    6) run "convertCertificate" "convertP7BtoPFX";;
+                    7) run "convertCertificate" "convertPFXtoPEM";;
+
+                    /q | q | 0)break;;
+                    *) ;;
+
+            esac
+            done
+            ;;
+
+        3) # submenu: Verify
             while :
             do
                 showBanner
@@ -439,7 +559,7 @@ do
                     1) run "verifyServerCertificatePrivateKeyPair";;
                     2) run "verifyCSRPrivateKeyPair";;
                     3) run "verifyChainFileAppliesToSignedCertificate";;
-                    4) run "checkValidity";;
+                    4) run "checkValidityOfCertificateFile";;
 
                     /q | q | 0)break;;
                     *) ;;
@@ -448,13 +568,14 @@ do
             done
             ;;
 
-        3) # submenu: Test
+        4) # submenu: Test
             while :
             do
                 showBanner
                 echo -e "\n\t${underlined}Test connectivity:${def}\n"
                 echo -e "\t1. SSL Certificate handshake"
-                echo -e "\t2. Permitted Protocols"
+                echo -e "\t2. SSL Server date validity"
+                echo -e "\t3. Permitted Protocols"
 
                 echo -e "\n\t0. Back"
                 echo -n -e "\n\tSelection: "
@@ -462,7 +583,8 @@ do
                 case $opt in
 
                     1) run "testSSLCertificateInstallation";;
-                    2) run "checkPermittedProtocols";;
+                    2) run "checkValidityOfSSLServer";;
+                    3) run "checkPermittedProtocols";;
 
                     /q | q | 0)break;;
                     *) ;;
@@ -471,7 +593,7 @@ do
             done
             ;;
         
-        4) # submenu: Info
+        5) # submenu: Info
             while :
             do
                 showBanner
