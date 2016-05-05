@@ -593,8 +593,8 @@ do
                 read -n1 opt;
                 case $opt in
 
-                    1) run "verifyServerCertificatePrivateKeyPair";;
-                    2) run "verifyCSRPrivateKeyPair";;
+                    1) run "verifyCSRPrivateKeyPair";;
+                    2) run "verifyServerCertificatePrivateKeyPair";;
                     3) run "verifyChainFileAppliesToSignedCertificate";;
                     4) run "checkValidityOfCertificateFile";;
 
