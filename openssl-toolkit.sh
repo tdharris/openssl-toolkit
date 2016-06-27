@@ -174,7 +174,7 @@ function createPEM {
 function verifyCSRPrivateKeyPair {
     echo -e "\nPlease provide the CSR public key and private key\n"
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-    if [ -d $path ];then 
+    if [ -d $path ];then
         cd $path;
     echo "Listing certificate files..."
         ls -l
@@ -204,7 +204,7 @@ function verifyCSRPrivateKeyPair {
 function verifyServerCertificatePrivateKeyPair {
     echo -e "\nPlease provide the private key and the public key/certificate\n"
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-    if [ -d $path ];then 
+    if [ -d $path ];then
         cd $path;
     echo "Listing certificate files..."
         ls -l
@@ -237,7 +237,7 @@ function verifyServerCertificatePrivateKeyPair {
 function verifyChainFileAppliesToSignedCertificate {
     echo -e "\nPlease provide the root/intermediate and CA-signed certificates\n"
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-    if [ -d $path ];then 
+    if [ -d $path ];then
         cd $path;
     echo "Listing certificate files..."
         ls -l
@@ -264,7 +264,7 @@ function testSSLCertificateInstallation {
     while [ "$valid" != "true" ]; do
         echo -e "Test SSL Certificate handshake. Note: Results will be piped to less.\n"
         read -ep "Server DNS/IP Address and port (server:port): " server;
-        if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
+        if [[ $server =~ .*:[[:digit:]]*$ ]]; then
             valid=true
             else echo -e "Invalid syntax for Server DNS/IP Address. Please try again.\n"
         fi
@@ -273,7 +273,7 @@ function testSSLCertificateInstallation {
     echo -e "Testing SSL Certificate Installation..."
     timeout $default_timeout echo | openssl s_client -connect $server | less
     echo -e "Connection output has been displayed."
-    
+
 }
 
 function checkPermittedProtocols {
@@ -285,7 +285,7 @@ function checkPermittedProtocols {
     while [ "$valid" != "true" ]; do
         echo -e "Test Permitted Protocols.\n"
         read -ep "Server DNS/IP Address and port (server:port): " server;
-        if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
+        if [[ $server =~ .*:[[:digit:]]*$ ]]; then
             valid=true
             else echo -e "Invalid syntax for Server DNS/IP Address. Please try again.\n"
         fi
@@ -293,11 +293,11 @@ function checkPermittedProtocols {
 
     echo -e "\nChecking Permitted Protocols (connection other than SSL3 or TLS1) for $server...\n"
     bad_protocol=false; bad_cipher=false;
-    timeout $default_timeout openssl s_client -connect $server:443 -no_ssl3 -no_tls1
+    timeout $default_timeout openssl s_client -connect $server -no_ssl3 -no_tls1
     if [ $? -eq 0 ]; then
         bad_protocol=true
     fi
-    timeout $default_timeout openssl s_client -connect $server:443 -cipher NULL,LOW
+    timeout $default_timeout openssl s_client -connect $server -cipher NULL,LOW
     if [ $? -eq 0 ]; then
         bad_cipher=true
     fi
@@ -315,18 +315,18 @@ function checkValidityOfCertificateFile {
     local crtFile;
     echo -e "\nCheck date validity of certificates. \n\nPlease provide the certificate file."
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-    if [ -d $path ];then 
+    if [ -d $path ];then
         cd $path;
     echo "Listing certificate files..."
         ls -l
         echo
         read -ep "Enter the certificate: " crtFile;
         if [[ -f ${PWD}"/$crtFile" ]]; then
-            
+
             checkStatus=$(openssl x509 -checkend $default_tolerance -in $crtFile)
             checkStatus+=" within $(echo "$default_tolerance / 86400" | bc) days"
             echo -e "\n$checkStatus"
-            openssl x509 -noout -enddate -in $crtFile  
+            openssl x509 -noout -enddate -in $crtFile
 
         else
             echo -e "Invalid file input.";
@@ -343,13 +343,13 @@ function getFileExtension {
     echo "${file##*.}"
 }
 # Convert
-function checkFileExtension { 
+function checkFileExtension {
     local file="$1"
     local exp="$2"
     local ext=$(getFileExtension "$file")
     if [ "$ext" == "$exp" ]; then
         echo 0
-    else 
+    else
         if askYesOrNo $"File extension is .$ext (expected .$exp), are you sure?"; then
             echo 0
         else echo 1
@@ -368,7 +368,7 @@ function convertCertificate {
     local source
     echo -e "\nConvert Certificate: $1. \n\nPlease provide the certificate file."
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-    if [ -d $path ];then 
+    if [ -d $path ];then
         cd $path;
     echo "Listing certificate files..."
         ls -l
@@ -384,42 +384,42 @@ function convertCertificate {
     local sourcename=$(getFilename "$source")
     local target="$sourcename"
     case "$1" in
-        "convertPEMtoDER") 
-            target="$target.der" 
+        "convertPEMtoDER")
+            target="$target.der"
             rc=$(checkFileExtension "$source" "pem")
-            if [[ $rc -eq 0 ]]; then 
-                openssl x509 -outform der -in "$source" -out "$target" 
+            if [[ $rc -eq 0 ]]; then
+                openssl x509 -outform der -in "$source" -out "$target"
                 handleConversionOutput "$?" "$source" "$target"
             fi;;
-        "convertPEMtoP7B") 
+        "convertPEMtoP7B")
             target="$target.p7b"
             rc=$(checkFileExtension "$source" "pem")
             if [[ $rc -eq 0 ]]; then
-                openssl crl2pkcs7 -nocrl -certfile "$source" -out "$target" 
+                openssl crl2pkcs7 -nocrl -certfile "$source" -out "$target"
                 handleConversionOutput "$?" "$source" "$target"
             fi;;
-        "convertPEMtoPFX") 
+        "convertPEMtoPFX")
             target="$target.pfx"
             rc=$(checkFileExtension "$source" "pem")
             if [[ $rc -eq 0 ]]; then
                 openssl pkcs12 -export -out "$target" -inkey "$source" -in "$source" -certfile "$source"
                 handleConversionOutput "$?" "$source" "$target"
             fi;;
-        "convertDERtoPEM") 
+        "convertDERtoPEM")
             target="$target.pem"
             rc=$(checkFileExtension "$source" "der")
             if [[ $rc -eq 0 ]]; then
                 openssl x509 -inform der -in "$source" -out "$target"
                 handleConversionOutput "$?" "$source" "$target"
             fi;;
-        "convertP7BtoPEM") 
+        "convertP7BtoPEM")
             target="$target.pem"
             rc=$(checkFileExtension "$source" "p7b")
             if [[ $rc -eq 0 ]]; then
                 openssl pkcs7 -print_certs -in "$source" -out "$target"
                 handleConversionOutput "$?" "$source" "$target"
             fi;;
-        "convertP7BtoPFX") 
+        "convertP7BtoPFX")
             target="$target.pfx"
             rc=$(checkFileExtension "$source" "p7b")
             if [[ $rc -eq 0 ]]; then
@@ -444,14 +444,14 @@ function checkValidityOfSSLServer {
     while [ "$valid" != "true" ]; do
         echo -e "Check date validity of ssl server.\n\nPlease provide the server information."
         read -ep "Server DNS/IP Address and port (server:port): " server;
-        if [[ $server =~ .*:[[:digit:]]*$ ]]; then 
+        if [[ $server =~ .*:[[:digit:]]*$ ]]; then
             valid=true
             else echo -e "Invalid syntax for Server DNS/IP Address. Please try again.\n"
         fi
     done
 
     echo -e "\nChecking date validity of $server\n"
-    timeout $default_timeout echo | openssl s_client -connect "$server:443" | openssl x509 -text | grep -i -A3 validity
+    timeout $default_timeout echo | openssl s_client -connect "$server" 2>&1 | openssl x509 -text | grep -i -B1 -A3 validity
 
 }
 
@@ -459,7 +459,7 @@ function output {
     type="$1"
     echo -e "\nOutput certificate information ($type). Note: Results will be piped to less. \n\nPlease provide the certificate file."
     read -ep "Enter the full path for certificate files (ie. /root/certificates): " path;
-    if [ -d $path ];then 
+    if [ -d $path ];then
         cd $path;
     echo "Listing certificate files..."
         ls -l
@@ -483,12 +483,12 @@ function output {
 
 function showBanner {
 clear
-echo -e "                                                        
-      ____                __________     ______          ____    _ __ 
+echo -e "
+      ____                __________     ______          ____    _ __
      / __ \___  ___ ___  / __/ __/ / ___/_  __/__  ___  / / /__ (_) /_
     / /_/ / _ \/ -_) _ \_\ \_\ \/ /_/___// / / _ \/ _ \/ /  '_// / __/
-    \____/ .__/\__/_//_/___/___/____/   /_/  \___/\___/_/_/\_\/_/\__/ 
-        /_/                                                           
+    \____/ .__/\__/_//_/___/___/____/   /_/  \___/\___/_/_/\_\/_/\__/
+        /_/
 "
 }
 
@@ -507,11 +507,11 @@ while :
 do
     showBanner
     echo -e "\n\t${underlined}Submenu options:${def}\n"
-    echo -e "\t1. Create certificates..."
-    echo -e "\t2. Convert certificates..."
-    echo -e "\t3. Verify certificates..."
-    echo -e "\t4. Test ssl server..."
-    echo -e "\t5. Output certificate information..."
+    echo -e "\t1. Create certificates"
+    echo -e "\t2. Convert certificates"
+    echo -e "\n\t3. Locally verify certificates"
+    echo -e "\t4. Externally verify certificates (s_client)"
+    echo -e "\n\t5. Output certificate information"
 
     echo -e "\n\tq. Quit"
     echo -n -e "\n\tSelection: "
@@ -549,7 +549,7 @@ do
             do
                 showBanner
                 echo -e "\n\t${underlined}Convert certificates:${def}\n"
-                
+
                 echo -e "\t1. PEM -> DER"
                 echo -e "\t2. PEM -> P7B"
                 echo -e "\t3. PEM -> PFX"
@@ -609,7 +609,7 @@ do
             while :
             do
                 showBanner
-                echo -e "\n\t${underlined}Test ssl server:${def}\n"
+                echo -e "\n\t${underlined}Test ssl server (s_client):${def}\n"
                 echo -e "\t1. SSL Certificate handshake"
                 echo -e "\t2. SSL Server date validity"
                 echo -e "\t3. Permitted Protocols"
@@ -629,7 +629,7 @@ do
             esac
             done
             ;;
-        
+
         5) # submenu: Info
             while :
             do
@@ -652,7 +652,7 @@ do
             esac
             done
             ;;
-        
+
         /q | q | 0) echo; break;;
         *) ;;
 
