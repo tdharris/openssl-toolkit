@@ -36,6 +36,17 @@ YES_NO_PROMPT=$"[y/n]: "
 YES_CAPS=$(echo ${YES_STRING}|tr [:lower:] [:upper:])
 NO_CAPS=$(echo ${NO_STRING}|tr [:lower:] [:upper:])
 
+function promptWithDefault {
+    local prompt="$1"
+    local default="$2"
+
+    read -p "$prompt [$default]: " variable
+    variable="${variable:-$default}"
+    
+    # return value
+    echo $variable
+}
+
 # Certificate functions
 function certPath {
     while [ true ];do
@@ -73,14 +84,20 @@ function createSelfSignedCertificate {
 }
 
 function createCSRKey {
-    #Start of Generate CSR and Key script.
+    # Create directory
     certPath
-        cd $certPath;
-        echo -e "\nGenerating a Key and CSR";
-        newCertPass
+    cd $certPath;
+
+    # Prompt for options..
+    echo -e "\nPrompting for certificate options.."
+    cipher=$(promptWithDefault "Cipher to encrypt pivate key (e.g. des3, aes128, aes192, etc.)" "aes256")
+    numbits=$(promptWithDefault "The size of the private key to generate in bits" "4096")
+
+    echo -e "\nGenerating a private key and csr...";
+    newCertPass
 
     echo ""
-    openssl genrsa -passout pass:${pass} -des3 -out server.key 2048;
+    openssl genrsa -passout pass:${pass} -$cipher -out server.key $numbits;
     openssl req -sha256 -new -key server.key -out server.csr -passin pass:${pass};
     key=${PWD##&/}"/server.key";
     csr=${PWD##&/}"/server.csr";
@@ -94,11 +111,8 @@ function signCert {
     isSelfSigned=true
     crt=${PWD##&/}"/server.crt"
     echo -e "\nSigning certificate."
-    if [ -f $key ] && [ -f $csr ];then
-        read -ep "Enter amount of days certificate will be valid for(ie. 730): " certDays;
-        if [[ -z "$certDays" ]]; then
-            certDays=730;
-        fi
+    if [ -f $key ] && [ -f $csr ]; then
+        certDays=$(promptWithDefault "Enter amount of days certificate will be valid for" "730")
         openssl x509 -req -sha256 -days $certDays -in $csr -signkey $key -out $crt -passin pass:${pass} 2>/dev/null;
         echo -e "Server certificate created at $crt";
         else
