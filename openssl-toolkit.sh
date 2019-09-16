@@ -47,6 +47,16 @@ function promptWithDefault {
     echo $variable
 }
 
+function checkResult {
+    local code="$1"
+    local message="$2"
+
+    if [ "$code" -ne 0 ]; then
+        echo -e "\n${red}Failure${def}. $message\n" && exit $code
+        else echo -e "${green}Success${def}.\n"
+    fi
+}
+
 # Certificate functions
 function certPath {
     while [ true ];do
@@ -67,12 +77,26 @@ function newCertPass {
             read -p "Enter password for private key: " -s -r pass;
             printf "\n";
             read -p "Confirm password: " -s -r passCompare;
-            if [ "$pass" = "$passCompare" ]; then
-                echo
-                break;
-            else
-                    echo -e "\nPasswords do not match.\n";
+
+            # Verify - innocence until proven guilty
+            problem=false
+
+            # password is not null
+            if [ -z "$pass" ]; then
+                problem=true
+                echo -e "\nPassword can't be null.\n";
             fi
+
+            # passwords match
+            if [ "$pass" != "$passCompare" ]; then
+                problem=true
+                echo -e "\nPasswords do not match.\n";
+            fi
+
+            if ! $problem; then
+                break;
+            fi
+
         done
 }
 
@@ -93,12 +117,15 @@ function createCSRKey {
     cipher=$(promptWithDefault "Cipher to encrypt pivate key (e.g. des3, aes128, aes192, etc.)" "aes256")
     numbits=$(promptWithDefault "The size of the private key to generate in bits" "4096")
 
-    echo -e "\nGenerating a private key and csr...";
+    echo -e "\nGenerating a private key...";
     newCertPass
-
-    echo ""
     openssl genrsa -passout pass:${pass} -$cipher -out server.key $numbits;
+    checkResult "$?" "Problem generating private key with 'openssl genrsa' using user inputs."
+
+    echo "Generating csr..."
     openssl req -sha256 -new -key server.key -out server.csr -passin pass:${pass};
+    checkResult "$?" "Problem generating private key with 'openssl genrsa' using user inputs."
+    
     key=${PWD##&/}"/server.key";
     csr=${PWD##&/}"/server.csr";
 
