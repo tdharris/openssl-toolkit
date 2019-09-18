@@ -3,7 +3,7 @@ This is an OpenSSL certificate toolkit utility leveraging OpenSSL's CLI for Linu
 
 Download <a href="https://github.com/tdharris/openssl-toolkit/releases/download/1.0/openssl-toolkit.zip">openssl-toolkit.zip</a> or see below for one-liner download, extract, launch:
 ```bash
-echo https://github.com/tdharris/openssl-toolkit/releases/download/1.0/openssl-toolkit.zip | xargs wget -qO- -O tmp.zip && unzip tmp.zip && rm tmp.zip && ./openssl-toolkit.sh
+echo https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl-toolkit-1.1.0.zip | xargs wget -qO- -O tmp.zip && unzip tmp.zip && rm tmp.zip && ./openssl-toolkit.sh
 ```
 
 The following tasks are supported:
