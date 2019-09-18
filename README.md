@@ -1,7 +1,7 @@
 # openssl-toolkit
 This is an OpenSSL certificate toolkit utility leveraging OpenSSL's CLI for Linux. This is a simple wrapper utility for OpenSSL CLI to help automate certificate tasks.
 
-Download <a href="https://github.com/tdharris/openssl-toolkit/releases/download/1.0/openssl-toolkit.zip">openssl-toolkit.zip</a> or see below for one-liner download, extract, launch:
+Download <a href="https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl-toolkit-1.1.0.zip">openssl-toolkit-1.1.0.zip</a> or see below for one-liner download, extract, launch:
 ```bash
 echo https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl-toolkit-1.1.0.zip | xargs wget -qO- -O tmp.zip && unzip tmp.zip && rm tmp.zip && ./openssl-toolkit.sh
 ```
