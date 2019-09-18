@@ -580,11 +580,11 @@ function finished {
 while :
 do
     showBanner
-    echo -e "\n\t${underlined}Submenu options:${def}\n"
+    echo -e "\n\t${underlined}Options:${def}\n"
     echo -e "\t1. Create certificates"
     echo -e "\t2. Convert certificates"
-    echo -e "\n\t3. Locally verify certificates"
-    echo -e "\t4. Externally verify certificates (s_client)"
+    echo -e "\n\t3. Verify certificate files"
+    echo -e "\t4. Verify application certificate (s_client)"
     echo -e "\n\t5. Output certificate information"
 
     echo -e "\n\tq. Quit"
@@ -600,7 +600,7 @@ do
                 echo -e "\n\t${underlined}Create certificates:${def}\n"
                 echo -e "\t1. Self-Signed SSL Certificate (key, csr, crt)"
                 echo -e "\t2. Private Key & Certificate Signing Request (key, csr)"
-                echo -e "\t3. PEM with key and entire trust chain"
+                echo -e "\t3. PEM from previous certificates (key, crt, intermediate crts)"
 
                 echo -e "\n\t0. Back"
                 echo -n -e "\n\tSelection: "
@@ -659,7 +659,7 @@ do
                 echo -e "\n\t${underlined}Verify certificates:${def}\n"
                 echo -e "\t1. CSR is a public key from the private key"
                 echo -e "\t2. Signed certificate is the public key from the private key"
-                echo -e "\t3. Chain file applies to the signed certificate (complete ssl chain)"
+                echo -e "\t3. 3rd party intermediate chain file is paired with the signed public certificate"
                 echo -e "\t4. Check date validity of certificates"
 
                 echo -e "\n\t0. Back"
