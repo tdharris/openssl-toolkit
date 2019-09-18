@@ -5,6 +5,7 @@ default_timeout=3
 default_tolerance=7776000 # 90 days
 isSelfSigned=false
 certificateFiles="*.key *.csr *.crt *.cert *.der"
+openssl_config="/etc/ssl/openssl.cnf"
 
 # Colors
 # example: echo -e "${green} TEXT ${def}"
@@ -107,17 +108,40 @@ function createSelfSignedCertificate {
     createPEM
 }
 
+function addSubjectAltNameToOpensslConfig {
+    # Verify openssl config file exists
+    if [ ! -f "$openssl_config" ]; then
+        echo "Openssl config file not found ($openssl_config), please reconfigure in script to appropriate location."
+        exit 1
+    else
+        # Check if it is already configured
+        grep subjectAltName "$openssl_config" | grep -v '^#' >/dev/null
+        if [ "$?" -ne 0 ]; then
+            if askYesOrNo "Prompt for subjectAltName extension?"; then
+                # Appent to config after '[ req_attributes ]' section
+                echo "Adding configuration to $openssl_config..."
+                sed -i.bak '/\[ req_attributes \]/a subjectAltName = Alternative DNS names, Email adresses or IPs (comma seperated list; e.g. DNS=example.com,DNS=www.example.com)' $openssl_config
+                checkResult "$?" "Problem adding subjectAltName extension to [ req_attributes ] section of $openssl_config"
+                echo "Backup openssl config file generated:"
+                ls "$openssl_config.bak"*
+            fi 
+        fi
+    fi 
+}
+
 function createCSRKey {
     # Create directory
     certPath
     cd $certPath;
 
     # Prompt for options..
-    echo -e "\nPrompting for certificate options.."
+    echo -e "\nCertificate options.."
     cipher=$(promptWithDefault "Cipher to encrypt pivate key (e.g. des3, aes128, aes192, etc.)" "aes256")
     numbits=$(promptWithDefault "The size of the private key to generate in bits" "4096")
 
-    echo -e "\nGenerating a private key...";
+    addSubjectAltNameToOpensslConfig
+
+    echo -e "\nGenerating private key...";
     newCertPass
     openssl genrsa -passout pass:${pass} -$cipher -out server.key $numbits;
     checkResult "$?" "Problem generating private key with 'openssl genrsa' using user inputs."
@@ -129,8 +153,8 @@ function createCSRKey {
     key=${PWD##&/}"/server.key";
     csr=${PWD##&/}"/server.csr";
 
-    echo -e "\nserver.key can be found at "$key;
-    echo -e "server.csr can be found at "$csr;
+    echo "server.key can be found at $key"
+    echo "server.csr can be found at $csr"
 }
 
 function signCert {
