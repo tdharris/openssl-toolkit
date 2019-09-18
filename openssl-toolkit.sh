@@ -657,9 +657,9 @@ do
             do
                 showBanner
                 echo -e "\n\t${underlined}Verify certificates:${def}\n"
-                echo -e "\t1. CSR is a public key from the private key"
-                echo -e "\t2. Signed certificate is the public key from the private key"
-                echo -e "\t3. 3rd party intermediate chain file is paired with the signed public certificate"
+                echo -e "\t1. CSR is signed by private key"
+                echo -e "\t2. Public certificate and private key are a keypair"
+                echo -e "\t3. 3rd party intermediate chain file and signed public certificate are a keypair"
                 echo -e "\t4. Check date validity of certificates"
 
                 echo -e "\n\t0. Back"
