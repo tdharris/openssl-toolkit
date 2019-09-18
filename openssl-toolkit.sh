@@ -1,7 +1,7 @@
 #!/bin/bash
 ##################################################################################################
 #
-# v1.0.1
+# v1.1.0
 # openssh toolkit is a simple cli tool leveraging openssl's cli for linux.
 # https://github.com/tdharris/openssl-toolkit
 # 
