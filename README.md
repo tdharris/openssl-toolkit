@@ -10,9 +10,9 @@ echo https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl
 The following tasks are supported:
 
 1. Create certificates:
-  - Self-Signed SSL Certificate (key, csr, crt)
-  - Private Key & Certificate Signing Request (key, csr)
-  - PEM from previous certificates (key, crt, intermediate crts) 
+   - Self-Signed SSL Certificate (key, csr, crt)
+   - Private Key & Certificate Signing Request (key, csr)
+   - PEM from previous certificates (key, crt, intermediate crts) 
 
 2. Convert certificates:
   - PEM -> DER
