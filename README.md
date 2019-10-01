@@ -15,25 +15,25 @@ The following tasks are supported:
    - PEM from previous certificates (key, crt, intermediate crts) 
 
 2. Convert certificates:
-  - PEM -> DER
-  - PEM -> P7B
-  - PEM -> PFX
-  - DER -> PEM
-  - P7B -> PEM
-  - P7B -> PFX
-  - PFX -> PEM
+   - PEM -> DER
+   - PEM -> P7B
+   - PEM -> PFX
+   - DER -> PEM
+   - P7B -> PEM
+   - P7B -> PFX
+   - PFX -> PEM
 
 3. Verify certificates:
-  - CSR is signed by private key
-  - Public certificate and private key are a keypair
-  - 3rd party intermediate chain file and signed public certificate are a keypair
-  - Check date validity of certificates
+   - CSR is signed by private key
+   - Public certificate and private key are a keypair
+   - 3rd party intermediate chain file and signed public certificate are a keypair
+   - Check date validity of certificates
 
 4. Test ssl server:
-  - SSL Certificate handshake
-  - SSL Server date validity
-  - Permitted Protocols
+   - SSL Certificate handshake
+   - SSL Server date validity
+   - Permitted Protocols
 
 5. Output certificate information:
-  - Output the details from a certifticate sign request
-  - Output the details from a signed certificate
+   - Output the details from a certifticate sign request
+   - Output the details from a signed certificate
