@@ -1,7 +1,7 @@
 # openssl-toolkit
-This is an OpenSSL certificate toolkit utility leveraging OpenSSL's CLI for Linux. This is a simple wrapper utility for OpenSSL CLI to help automate certificate tasks.
+This is an OpenSSL certificate toolkit utility leveraging OpenSSL's CLI for Linux. This is a simple wrapper utility for OpenSSL CLI to help automate common certificate tasks.
 
-Download <a href="https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl-toolkit-1.1.0.zip">openssl-toolkit-1.1.0.zip</a> or see below for one-liner download, extract, launch:
+Download <a href="https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl-toolkit-1.1.0.zip">openssl-toolkit-1.1.0.zip</a> or see below one-liner to download, extract, launch:
 ```bash
 echo https://github.com/tdharris/openssl-toolkit/releases/download/1.1.0/openssl-toolkit-1.1.0.zip \
 | xargs wget -qO- -O tmp.zip && unzip -o tmp.zip && rm tmp.zip && ./openssl-toolkit/openssl-toolkit.sh
@@ -15,13 +15,13 @@ The following tasks are supported:
    - PEM from previous certificates (key, crt, intermediate crts) 
 
 2. Convert certificates:
-   - PEM -> DER
-   - PEM -> P7B
-   - PEM -> PFX
-   - DER -> PEM
-   - P7B -> PEM
-   - P7B -> PFX
-   - PFX -> PEM
+   - `PEM` -> `DER`
+   - `PEM` -> `P7B`
+   - `PEM` -> `PFX`
+   - `DER` -> `PEM`
+   - `P7B` -> `PEM`
+   - `P7B` -> `PFX`
+   - `PFX` -> `PEM`
 
 3. Verify certificates:
    - CSR is signed by private key
